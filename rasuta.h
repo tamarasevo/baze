@@ -16,6 +16,9 @@ int azuriraj_agregiranu(FILE* fagregat, int kljuc, SLOG_AGREGAT* novi_slog);
 int logicki_obrisi_agregiranu(FILE* fagregat, int kljuc);
 void ispisi_agregiranu_datoteku(FILE* fagregat);
 
+int dodaj_slog_u_rasutu(FILE* , SLOG_AGREGAT* , int* );
+int fizicki_obrisi_iz_rasute(FILE* , int , int* );
+
 // Funkcije za rad sa datotekom promena
 int formiraj_datoteku_promena(char* naziv);
 int dodaj_u_datoteku_promena(FILE* fpromena, int kljuc, SLOG_AGREGAT* slog, char operacija);

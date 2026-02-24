@@ -25,8 +25,24 @@ typedef struct {
 
 // Baket (blok) za rasutu datoteku
 typedef struct {
-    SLOG_AGREGAT slogovi[FAKTOR_B];
+    SLOG_AGREGAT podaci;                    // stvarni podaci
+    int sledeci_u_lancu_sinonima;           // -1 ako nema sledeceg
+} SLOG_SA_POKAZIVACEM;
+
+// ===== NOVO: Baket sa dva pokazivaca =====
+typedef struct {
+    // 1. ZAGLAVLJE BAKETA - za lanac slobodnih baketa
+    int prethodni_u_lancu_slobodnih;        // -1 ako je prvi u lancu
+    int sledeci_u_lancu_slobodnih;          // -1 ako je poslednji u lancu
+    int broj_slobodnih;                      // koliko slobodnih mesta ima u ovom baketu
+    
+    // 2. ZA MATICNI BAKET - pokazivac na prvi slog u lancu sinonima
+    int prvi_u_lancu_sinonima;               // -1 ako nema prekoracilaca
+    
+    // 3. SLOGOVI U BAKETU (svaki sa svojim pokazivacem)
+    SLOG_SA_POKAZIVACEM slogovi[FAKTOR_B];
 } BAKET;
+
 
 // Datoteka promena (za direktnu obradu)
 typedef struct {

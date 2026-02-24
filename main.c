@@ -19,6 +19,9 @@ int main() {
     FILE* fpromena = NULL;      
     FILE* flog = NULL; 
     
+    int E;  // pokazivac na prvi slobodan baket
+    int prebroj_prekoracioci; 
+
     char aktivna_dat[256];
     
     do {
@@ -551,8 +554,8 @@ int main() {
                     printf("1. Aktiviraj postojecu agregiranu datoteku\n");
                     printf("2. Formiraj novu agregiranu datoteku (iz automobila i parkinga)\n");
                     printf("3. Prikazi sadrzaj agregirane datoteke\n");
-                    printf("4. Azuriraj agregiranu datoteku (direktno)\n");
-                    printf("5. Logicko brisanje sloga\n");
+                    printf("4. Ispis datoteke\n");
+                    printf("5. Dodavanje sloga\n");
                     printf("6. Formiraj datoteku promena\n");
                     printf("7. Direktna obrada (pomocu datoteke promena)\n");
                     printf("8. Propagacija iz dela 1\n");
@@ -565,21 +568,23 @@ int main() {
                     switch(podOpcija) {
                         case 1:
                             {
-                                //POPRAVITI
-                            if(pfile != NULL) {
-                                fclose(pfile);
-                                pfile = NULL;
-                            }
-                            printf("Unesite naziv datoteke za parkiranja: ");
-                            scanf("%s", aktivna_dat);
-                            //while(getchar() != '\n');
-                            pfile = postavi_aktivnu_datoteku(aktivna_dat);
-                            if(pfile != NULL) {
-                                printf("Datoteka '%s' uspesno aktivirana.\n", aktivna_dat);
-                            } else {
-                                printf("Greska pri otvaranju datoteke!\n");
-                            }
-                            break;
+                                if(agregat_file != NULL) {
+                                    fclose(agregat_file);
+                                    agregat_file = NULL;
+                                }
+                                
+                                printf("Unesite naziv agregirane datoteke: ");
+                                scanf("%s", aktivna_dat);
+                                //while(getchar() != '\n');
+                                
+                                agregat_file = postavi_aktivnu_datoteku(aktivna_dat);
+                                if(agregat_file != NULL) {
+                                    printf("Agregirana datoteka '%s' uspesno aktivirana.\n", aktivna_dat);
+                                    E = 0;  // inicijalizuj E na prvi baket
+                                } else {
+                                    printf("Greska pri otvaranju agregirane datoteke!\n");
+                                }
+                                break;
                             }
                         case 2:
                             {
@@ -588,26 +593,29 @@ int main() {
                                     break;
                                 }
                                 
+                                char naz_dat[256];
                                 printf("Unesite naziv nove agregirane datoteke: ");
-                                scanf("%s", aktivna_dat);
+                                scanf("%s", naz_dat);
                                 while(getchar() != '\n');
                                 
-                                int status = formiraj_agregiranu_datoteku(aktivna_dat, afile, pfile);
-                                
-                                if(status == 0) {
-                                    printf("Agregirana datoteka '%s' uspesno formirana.\n", aktivna_dat);
+                                // Formiraj datoteku
+                                if(formiraj_agregiranu_datoteku(naz_dat, afile, pfile) == 0) {
+                                    printf("Agregirana datoteka '%s' uspesno kreirana.\n", naz_dat);
                                     
+                                    // Zatvori staru ako je bila otvorena
                                     if(agregat_file != NULL) {
                                         fclose(agregat_file);
                                         agregat_file = NULL;
                                     }
                                     
-                                    agregat_file = fopen(aktivna_dat, "rb+");
+                                    // Aktiviraj novu datoteku
+                                    agregat_file = postavi_aktivnu_datoteku(naz_dat);
                                     if(agregat_file != NULL) {
-                                        printf("Agregirana datoteka '%s' je sada aktivna.\n", aktivna_dat);
+                                        E = 0;  // inicijalizuj E
+                                        printf("Agregirana datoteka '%s' je sada aktivna.\n", naz_dat);
                                     }
                                 } else {
-                                    printf("Greska pri formiranju agregirane datoteke!\n");
+                                    printf("Greska pri kreiranju agregirane datoteke!\n");
                                 }
                                 break;
                             }
@@ -617,20 +625,104 @@ int main() {
                             break;
                             
                         case 4:
-                            printf("Opcija 4: Ažuriranje agregirane datoteke\n");
-                            printf("(jos nije implementirano)\n");
-                            break;
-                            
+                            {
+                                if(agregat_file == NULL) {
+                                    printf("Prvo aktivirajte agregiranu datoteku (opcija 1)!\n");
+                                    break;
+                                }
+                                
+                                ispisi_agregiranu_datoteku(agregat_file);
+                                break;
+                            }   
                         case 5:
-                            printf("Opcija 5: Logičko brisanje sloga\n");
-                            printf("(jos nije implementirano)\n");
-                            break;
+                        {
+                              if(agregat_file == NULL) {
+                                printf("Prvo aktivirajte agregiranu datoteku (opcija 1)!\n");
+                                break;
+                             }
+    
+                            printf("\n--- UNOS NOVOG SLOGA U AGREGIRANU DATOTEKU ---\n");
                             
+                            SLOG_AGREGAT novi;
+                            
+                            printf("Registarska oznaka: ");
+                            scanf("%d", &novi.reg_oznaka);
+                            ocisti_buffer();
+                            
+                            printf("Marka: ");
+                            scanf("%s", novi.marka);
+                            ocisti_buffer();
+                            
+                            printf("Model: ");
+                            scanf("%s", novi.model);
+                            ocisti_buffer();
+                            
+                            printf("Godina proizvodnje (4 cifre): ");
+                            scanf("%s", novi.godina_proizvodnje);
+                            ocisti_buffer();
+                            
+                            printf("Boja: ");
+                            scanf("%s", novi.boja);
+                            ocisti_buffer();
+                            
+                            printf("Ukupna duzina boravka u BELOJ zoni (sati): ");
+                            scanf("%d", &novi.duz_bela);
+                            ocisti_buffer();
+                            
+                            printf("Ukupna duzina boravka u CRVENOJ zoni (sati): ");
+                            scanf("%d", &novi.duz_crvena);
+                            ocisti_buffer();
+                            
+                            printf("Ukupna duzina boravka u PLAVOJ zoni (sati): ");
+                            scanf("%d", &novi.duz_plava);
+                            ocisti_buffer();
+                            
+                            novi.status = ' ';  // aktivan
+                            
+                            // Izračunaj matični baket
+                            int maticni = hash_preklapanje(novi.reg_oznaka);
+                            printf("Auto treba u baket %d\n", maticni);
+                            
+                            // Pokušaj da upišeš
+                            int prvi_slobodan = -1; // Za sada ne koristimo
+                            int rezultat = dodaj_slog_u_rasutu(agregat_file, &novi, &E);
+                            
+                            if(rezultat == 0) {
+                                printf("Automobil uspesno dodat u agregiranu datoteku!Novi E=%d\n",E);
+                            } else {
+                                printf("Greska pri dodavanju automobila!\n");
+                            }
+                            break;
+                        }   
                         case 6:
-                            printf("Opcija 6: Formiranje datoteke promena\n");
-                            printf("(jos nije implementirano)\n");
-                            break;
+                        {
+                            if(agregat_file == NULL) {
+                                printf("Prvo aktivirajte agregiranu datoteku!\n");
+                                break;
+                            }
                             
+                            int reg;
+                            printf("Unesite registarsku oznaku za brisanje: ");
+                            scanf("%d", &reg);
+                            ocisti_buffer();
+                            
+                            printf("Da li ste sigurni? (1-DA, 0-NE): ");
+                            int potvrda;
+                            scanf("%d", &potvrda);
+                            ocisti_buffer();
+                            
+                            if (potvrda == 1) {
+                                int rez = fizicki_obrisi_iz_rasute(agregat_file, reg, &E);
+                                if (rez == 0) {
+                                    printf("Auto uspesno obrisan!\n");
+                                } else {
+                                    printf(" Greska pri brisanju!\n");
+                                }
+                            } else {
+                                printf("Brisanje otkazano.\n");
+                            }
+                            break;
+                        }
                         case 7:
                             printf("Opcija 7: Direktna obrada\n");
                             printf("(jos nije implementirano)\n");
