@@ -3,23 +3,20 @@
 #include <stdio.h>
 
 #define FBLOKIRANJA_2 4 
-
-
 #define OZNAKA_KRAJA_DATOTEKE -1
 
-typedef enum {PLAVA,BELA,CRVENA}Zona;
+typedef enum {PLAVA, BELA, CRVENA} Zona;
 
-
-typedef struct slog_parking{
+typedef struct slog_parking {
     int id;
     int reg_oznaka;
-    char datum[11];
+    char datum[12];  // +1 za null karakter (DD-MM-YYYY)
     int sati;
     Zona zona;
+} SLOG_PARKING;
 
-}SLOG_PARKING;
+typedef struct blok_parking {
+    SLOG_PARKING parkinzi[FBLOKIRANJA_2];  // promenjeno ime za konzistentnost
+} BLOK_PARKING;
 
-typedef struct blok_parking{
-   SLOG_PARKING automobili[FBLOKIRANJA_2];
-}BLOK_PARKING;
 #endif //PARKIRANJE_H_INCLUDED
