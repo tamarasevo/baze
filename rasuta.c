@@ -338,7 +338,7 @@ void ispisi_agregiranu_datoteku(FILE* frasuta) {
     printf("============================================================================================================\n");
     printf("%5s %5s %12s %20s %20s %8s %20s %8s %8s %8s %6s\n", 
            "Baket", "Poz", "Reg.ozn", "Marka", "Model", "Godina", 
-           "Boja", "Bela", "Crvena", "Plava", "Status");
+           "Boja", "Bela", "Crvena", "Plava");
     printf("------------------------------------------------------------------------------------------------------------\n");
     
     int ukupno_slogova = 0;
@@ -503,4 +503,138 @@ int fizicki_obrisi_iz_rasute(FILE* frasuta, int reg, int* E) {
     
     printf("Auto %d uspesno fizicki obrisan iz baketa %d.\n", reg, baket);
     return 0;
+}
+
+int azuriraj_agregiranu(FILE* fagregat, int kljuc) {
+    if (fagregat == NULL) {
+        printf("Datoteka nije otvorena!\n");
+        return 2;
+    }
+
+    // 1. Prvo nadji slog koristeci PRAVU funkciju
+    int baket, pozicija;
+    SLOG_AGREGAT slog;
+    
+    int status = nadji_u_rasutoj(fagregat, kljuc, &slog, &baket, &pozicija);
+    
+    if (status == 0) {
+        printf("Automobil sa oznakom %d nije pronadjen u rasutoj datoteci!\n", kljuc);
+        return 0;
+    }
+    
+    // 2. Prikazi trenutne podatke
+    printf("\n=== IZMENA SLOGA U RASUTOJ DATOTECI ===\n");
+    printf("Automobil sa oznakom: %d\n", kljuc);
+    printf("Lokacija: baket %d, pozicija %d\n", baket, pozicija + 1);
+    printf("\nTrenutni podaci:\n");
+    printf("1. Marka: %s\n", slog.marka);
+    printf("2. Model: %s\n", slog.model);
+    printf("3. Godina proizvodnje: %s\n", slog.godina_proizvodnje);
+    printf("4. Boja: %s\n", slog.boja);
+    printf("5. Duzina boravka - Bela zona: %d sati\n", slog.duz_bela);
+    printf("6. Duzina boravka - Crvena zona: %d sati\n", slog.duz_crvena);
+    printf("7. Duzina boravka - Plava zona: %d sati\n", slog.duz_plava);
+    printf("8. Status: %c\n", slog.status);
+    printf("0. Kraj izmene i cuvanje\n");
+    
+    // 3. Menjanje podataka
+    int izbor = -1;
+    SLOG_AGREGAT izmenjen = slog;
+    
+    do {
+        printf("\nIzaberite polje za izmenu (1-8, 0 za kraj): ");
+        scanf("%d", &izbor);
+        while(getchar() != '\n');
+        
+        switch(izbor) {
+            case 1: // Marka
+                printf("Trenutna marka: %s\n", izmenjen.marka);
+                printf("Unesite novu marku: ");
+                scanf(" %30[^\n]", izmenjen.marka);
+                while(getchar() != '\n');
+                printf("Marka je uspesno izmenjena!\n");
+                break;
+                
+            case 2: // Model
+                printf("Trenutni model: %s\n", izmenjen.model);
+                printf("Unesite novi model: ");
+                scanf(" %30[^\n]", izmenjen.model);
+                while(getchar() != '\n');
+                printf("Model je uspesno izmenjen!\n");
+                break;
+                
+            case 3: // Godina proizvodnje
+                printf("Trenutna godina proizvodnje: %s\n", izmenjen.godina_proizvodnje);
+                printf("Unesite novu godinu proizvodnje: ");
+                scanf(" %4[^\n]", izmenjen.godina_proizvodnje);
+                while(getchar() != '\n');
+                printf("Godina proizvodnje je uspesno izmenjena!\n");
+                break;
+                
+            case 4: // Boja
+                printf("Trenutna boja: %s\n", izmenjen.boja);
+                printf("Unesite novu boju: ");
+                scanf(" %20[^\n]", izmenjen.boja);
+                while(getchar() != '\n');
+                printf("Boja je uspesno izmenjena!\n");
+                break;
+                
+            case 5: // Bela zona
+                printf("Trenutna duzina u beloj zoni: %d sati\n", izmenjen.duz_bela);
+                printf("Unesite novu vrednost: ");
+                scanf("%d", &izmenjen.duz_bela);
+                while(getchar() != '\n');
+                printf("Duzina u beloj zoni je uspesno izmenjena!\n");
+                break;
+                
+            case 6: // Crvena zona
+                printf("Trenutna duzina u crvenoj zoni: %d sati\n", izmenjen.duz_crvena);
+                printf("Unesite novu vrednost: ");
+                scanf("%d", &izmenjen.duz_crvena);
+                while(getchar() != '\n');
+                printf("Duzina u crvenoj zoni je uspesno izmenjena!\n");
+                break;
+                
+            case 7: // Plava zona
+                printf("Trenutna duzina u plavoj zoni: %d sati\n", izmenjen.duz_plava);
+                printf("Unesite novu vrednost: ");
+                scanf("%d", &izmenjen.duz_plava);
+                while(getchar() != '\n');
+                printf("Duzina u plavoj zoni je uspesno izmenjena!\n");
+                break;
+                
+            case 8: // Status
+                printf("Trenutni status: %c\n", izmenjen.status);
+                printf("Unesite novi status ( ' ' - aktivan, '*' - obrisan): ");
+                scanf(" %c", &izmenjen.status);
+                while(getchar() != '\n');
+                printf("Status je uspesno izmenjen!\n");
+                break;
+                
+            case 0:
+                printf("Cuvanje izmena...\n");
+                break;
+                
+            default:
+                printf("Nepostojeci izbor! Pokusajte ponovo.\n");
+        }
+        
+    } while (izbor != 0);
+    
+    // 4. Upisi izmenjen slog nazad u baket
+    // Ponovo ucitaj ceo baket
+    BAKET baket_struct;
+    fseek(fagregat, baket * sizeof(BAKET), SEEK_SET);
+    fread(&baket_struct, sizeof(BAKET), 1, fagregat);
+    
+    // Izmeni slog na odgovarajućoj poziciji
+    baket_struct.slogovi[pozicija].podaci = izmenjen;
+    
+    // Vrati izmenjen baket
+    fseek(fagregat, baket * sizeof(BAKET), SEEK_SET);
+    fwrite(&baket_struct, sizeof(BAKET), 1, fagregat);
+    fflush(fagregat);
+    
+    printf("\nAutomobil sa oznakom %d je uspesno izmenjen.\n", kljuc);
+    return 1;
 }

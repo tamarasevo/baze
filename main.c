@@ -556,8 +556,8 @@ int main() {
                     printf("3. Prikazi sadrzaj agregirane datoteke\n");
                     printf("4. Ispis datoteke\n");
                     printf("5. Dodavanje sloga\n");
-                    printf("6. Formiraj datoteku promena\n");
-                    printf("7. Direktna obrada (pomocu datoteke promena)\n");
+                    printf("6. Fizicko brisanje sloga\n");
+                    printf("7. Modifikacija sloga rasute datoteke\n");
                     printf("8. Propagacija iz dela 1\n");
                     printf("9. Prikazi log izvestaj\n");
                     printf("0. Povratak na glavni meni\n");
@@ -724,10 +724,30 @@ int main() {
                             break;
                         }
                         case 7:
-                            printf("Opcija 7: Direktna obrada\n");
-                            printf("(jos nije implementirano)\n");
-                            break;
-                            
+                        {
+                            if(agregat_file == NULL) {
+                                    printf("Prvo aktivirajte agregiranu datoteku!\n");
+                                    break;
+                                }
+                                
+                                printf("\n--- AZURIRANJE SLOGA U RASUTOJ DATOTECI ---\n");
+                                
+                                int kljuc;
+                                printf("Unesite registarsku oznaku automobila za izmenu: ");
+                                scanf("%d", &kljuc);
+                                while(getchar() != '\n');
+                                
+                                int rezultat = azuriraj_agregiranu(agregat_file, kljuc);
+                                
+                                if(rezultat == 1) {
+                                    printf("Izmena uspesno izvrsena.\n");
+                                } else if(rezultat == 0) {
+                                    printf(" Automobil nije pronadjen.\n");
+                                } else {
+                                    printf("Greska pri izmeni.\n");
+                                }
+                                break;
+                        }                           
                         case 8:
                             printf("Opcija 8: Propagacija iz dela 1\n");
                             printf("(jos nije implementirano)\n");

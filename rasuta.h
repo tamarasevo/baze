@@ -11,13 +11,14 @@ int hash_preklapanje(int kljuc);
 FILE* aktiviraj_agregiranu_datoteku(char* naziv);
 int formiraj_agregiranu_datoteku(char* naziv, FILE* fauto, FILE* fpark);
 int upisi_u_baket(FILE* fagregat, int baket_indeks, SLOG_AGREGAT* slog, int* pozicija);
-int nadji_u_agregiranoj(FILE* fagregat, int kljuc, SLOG_AGREGAT* slog, int* baket, int* pozicija);
-int azuriraj_agregiranu(FILE* fagregat, int kljuc, SLOG_AGREGAT* novi_slog);
+int nadji_u_rasutoj(FILE* fagregat, int kljuc, SLOG_AGREGAT* slog, int* baket, int* pozicija);
+
 int logicki_obrisi_agregiranu(FILE* fagregat, int kljuc);
 void ispisi_agregiranu_datoteku(FILE* fagregat);
 
 int dodaj_slog_u_rasutu(FILE* , SLOG_AGREGAT* , int* );
 int fizicki_obrisi_iz_rasute(FILE* , int , int* );
+int azuriraj_agregiranu(FILE* , int );
 
 // Funkcije za rad sa datotekom promena
 int formiraj_datoteku_promena(char* naziv);
