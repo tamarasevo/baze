@@ -13,7 +13,7 @@ int formiraj_agregiranu_datoteku(char* naziv, FILE* fauto, FILE* fpark);
 int upisi_u_baket(FILE* fagregat, int baket_indeks, SLOG_AGREGAT* slog, int* pozicija);
 int nadji_u_rasutoj(FILE* fagregat, int kljuc, SLOG_AGREGAT* slog, int* baket, int* pozicija);
 
-int logicki_obrisi_agregiranu(FILE* fagregat, int kljuc);
+int logicki_obrisi_iz_rasute(FILE* fagregat, int kljuc);
 void ispisi_agregiranu_datoteku(FILE* fagregat);
 
 int dodaj_slog_u_rasutu(FILE* , SLOG_AGREGAT* , int* );
@@ -22,8 +22,14 @@ int azuriraj_agregiranu(FILE* , int );
 
 // Funkcije za rad sa datotekom promena
 int formiraj_datoteku_promena(char* naziv);
-int dodaj_u_datoteku_promena(FILE* fpromena, int kljuc, SLOG_AGREGAT* slog, char operacija);
-int direktna_obrada(FILE* fagregat, FILE* fpromena, FILE* flog);
+int dodaj_u_datoteku_promena(FILE* fpromena, SLOG_PROMENA* novi_slog);
+int nadji_u_promenama(FILE* fpromena, int kljuc, SLOG_PROMENA* pronadjen);
+int fizicki_obrisi_iz_promena(FILE* naziv, int kljuc_za_brisanje);
+int izmeni_u_promenama(FILE* fpromena, int kljuc, SLOG_PROMENA* novi_slog);
+
+int propagiraj_iz_automobila(FILE* fagregat, FILE* fauto, FILE* fpark, FILE* flog);
+
+int direktna_obrada(FILE* fagregat, FILE* fpromena, FILE* flog, int* E);
 void ispisi_datoteku_promena(FILE* fpromena);
 
 // Funkcije za rad sa log datotekom
@@ -40,5 +46,7 @@ int propagiraj_jedan_auto(FILE* fagregat, FILE* fauto, FILE* fpark, FILE* flog, 
 int baket_je_pun(BAKET* baket);
 int nadji_slobodno_mesto(BAKET* baket);
 void inicijalizuj_baket(BAKET* baket);
+
+
 
 #endif

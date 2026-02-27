@@ -558,8 +558,15 @@ int main() {
                     printf("5. Dodavanje sloga\n");
                     printf("6. Fizicko brisanje sloga\n");
                     printf("7. Modifikacija sloga rasute datoteke\n");
-                    printf("8. Propagacija iz dela 1\n");
-                    printf("9. Prikazi log izvestaj\n");
+                    printf("8. Formiraj datoteku promena\n");
+                    printf("9. Dodaj slog u datoteku promena\n");
+                    printf("10. Ispis datoteke promena\n");
+                    printf("11. Fizicko brisanje sloga iz datoteke promena\n");
+                    printf("12. Logicko brisanje sloga iz rasute datoteke\n");
+                    printf("13. Formiranje log datoteke\n");
+                    printf("14. Prikaz izvestaja.\n");
+                    printf("15. Propagacija iz dela 1.\n");
+                    printf("16. Modifikacija sloga datoteke promena\n");
                     printf("0. Povratak na glavni meni\n");
                     printf("Izaberite opciju: ");
                     scanf("%d", &podOpcija);
@@ -749,15 +756,259 @@ int main() {
                                 break;
                         }                           
                         case 8:
-                            printf("Opcija 8: Propagacija iz dela 1\n");
-                            printf("(jos nije implementirano)\n");
-                            break;
+                        {
+                            if(agregat_file == NULL) {
+                                printf("Prvo aktivirajte agregiranu datoteku!\n");
+                                break;
+                            }
+                            printf("Unesite naziv datoteke promena: ");
+                            scanf("%s", aktivna_dat);
                             
+                            int status_promena = formiraj_datoteku_promena(aktivna_dat);
+                            if(status_promena == 0) {
+                                printf("Datoteka promena '%s' uspesno formirana.\n", aktivna_dat);
+                                if(fpromena != NULL) fclose(fpromena);
+                                fpromena = fopen(aktivna_dat, "rb+");
+                                if(fpromena != NULL) {
+                                    printf("Datoteka promena je sada aktivna.\n");
+                                }
+                            } else {
+                                printf("Greska pri formiranju datoteke promena!\n");
+                            }
+                            break;
+                        }    
                         case 9:
-                            printf("Opcija 9: Prikaz log izveštaja\n");
-                            printf("(jos nije implementirano)\n");
+                            {
+                                if(fpromena == NULL) {
+                                    printf("Prvo aktivirajte datoteku promena!\n");
+                                    break;
+                                }
+                                
+                                SLOG_PROMENA slog_promena;  // <-- OVO JE KLJUČNO!
+                                
+                                printf("Unesite kljuc automobila: ");
+                                scanf("%d", &slog_promena.kljuc);
+                                ocisti_buffer();
+                                
+                                printf("Unesite marku: ");
+                                scanf("%s", slog_promena.slog.marka);
+                                
+                                printf("Unesite model: ");
+                                scanf("%s", slog_promena.slog.model);
+                                
+                                printf("Unesite godinu proizvodnje: ");
+                                scanf("%s", slog_promena.slog.godina_proizvodnje);
+                                
+                                printf("Unesite boju: ");
+                                scanf("%s", slog_promena.slog.boja);
+                                
+                                printf("Unesite duzinu u beloj zoni: ");
+                                scanf("%d", &slog_promena.slog.duz_bela);
+                                
+                                printf("Unesite duzinu u crvenoj zoni: ");
+                                scanf("%d", &slog_promena.slog.duz_crvena);
+                                
+                                printf("Unesite duzinu u plavoj zoni: ");
+                                scanf("%d", &slog_promena.slog.duz_plava);
+                                
+                                slog_promena.slog.reg_oznaka = slog_promena.kljuc;
+                                slog_promena.slog.status = ' ';
+                                
+                                printf("Unesite operaciju (n-novi, m-modifikacija, b-brisanje): ");
+                                scanf(" %c", &slog_promena.operacija);
+                                ocisti_buffer();
+                                
+                                // Prosleđuješ CELU SLOG_PROMENA strukturu
+                                dodaj_u_datoteku_promena(fpromena, &slog_promena);
+                                
+                                break;
+                            }
+                        case 10:
+                        {
+                            if(fpromena == NULL) {
+                                printf("Prvo aktivirajte datoteku promena!\n");
+                                break;
+                            }
+                            ispisi_datoteku_promena(fpromena);
                             break;
-                            
+                        }
+                        case 11:
+                            {
+                                if (fpromena == NULL) {
+                                    printf("Prvo aktivirajte datoteku promena!\n");
+                                    break;
+                                }
+                                
+                                int kljuc;
+                                printf("Unesite kljuc auta za brisanje iz datoteke promena: ");
+                                scanf("%d", &kljuc);
+                                ocisti_buffer();
+                                
+                                // POZOVI FUNKCIJU DIREKTNO – NE ZATVARAJ FAJL!
+                                int rez = fizicki_obrisi_iz_promena(fpromena, kljuc);
+                                
+                                if (rez == 0) {
+                                    printf("Slog sa kljucem %d uspesno obrisan.\n", kljuc);
+                                } else if (rez == 2) {
+                                    printf("Slog sa kljucem %d nije pronadjen.\n", kljuc);
+                                } else {
+                                    printf("Greska pri brisanju.\n");
+                                }
+                                break;
+                            }
+                        case 12: 
+                                {
+                                    if(agregat_file == NULL) {
+                                        printf("Prvo aktivirajte agregiranu datoteku (opcija 1)!\n");
+                                        break;
+                                    }
+                                    
+                                    printf("\n--- LOGICKO BRISANJE IZ RASUTE DATOTEKE ---\n");
+                                    
+                                    int kljuc;
+                                    printf("Unesite registarsku oznaku automobila za logicko brisanje: ");
+                                    scanf("%d", &kljuc);
+                                    ocisti_buffer();
+                                    
+                                    // Poziv funkcije za logičko brisanje
+                                    int rezultat = logicki_obrisi_iz_rasute(agregat_file, kljuc);
+                                    
+                                    if(rezultat == 0) {
+                                        printf("Automobil %d je uspešno logicki obrisan.\n", kljuc);
+                                    } else {
+                                        printf("Greska pri logickom brisanju automobila %d.\n", kljuc);
+                                    }
+                                    break;
+                                }
+                            case 13: 
+                                 {
+                                    char naziv[256];
+                                     printf("Unesite naziv log datoteke: ");
+                                     scanf("%s", naziv);
+                                        
+                                    int status = formiraj_log_datoteku(naziv);
+                                    if(status == 0) {
+                                        printf("Log datoteka '%s' uspesno formirana.\n", naziv);
+                                            
+                                         // Zatvori staru ako je bila otvorena
+                                        if(flog != NULL) {
+                                             fclose(flog);
+                                             flog = NULL;
+                                        }
+                                            
+                                            // Otvori novu
+                                        flog = fopen(naziv, "rb+");
+                                        if(flog != NULL) {
+                                             printf("Log datoteka je sada aktivna.\n");
+                                        }
+                                        } else {
+                                            printf("Greska pri formiranju log datoteke.\n");
+                                    }
+                                    break;
+                                }
+                        case 14: // Prikaz izveštaja iz log datoteke
+                                {
+                                    if(flog == NULL) {
+                                        printf("Prvo aktivirajte log datoteku (opcija 13)!\n");
+                                        break;
+                                    }
+                                    
+                                    prikazi_log_izvestaj(flog);
+                                    break;
+                                }
+                        case 15: // Propagacija iz dela 1
+                            {
+                                if(agregat_file == NULL || afile == NULL || pfile == NULL) {
+                                    printf("Morate aktivirati sve tri datoteke (auto, parking, agregat)!\n");
+                                    break;
+                                }
+                                
+                                if(flog == NULL) {
+                                    printf("Prvo aktivirajte log datoteku (opcija 13)!\n");
+                                    break;
+                                }
+                                
+                                propagiraj_iz_automobila(agregat_file, afile, pfile, flog);
+                                break;
+                            }
+                        case 16: // Modifikacija sloga u datoteci promena
+                            {
+                                if(fpromena == NULL) {
+                                    printf("Prvo aktivirajte datoteku promena (opcija 8)!\n");
+                                    break;
+                                }
+                                
+                                int kljuc;
+                                printf("Unesite kljuc sloga za izmenu: ");
+                                scanf("%d", &kljuc);
+                                
+                                SLOG_PROMENA novi;
+                                novi.kljuc = kljuc;
+                                
+                                printf("Unesite novu operaciju (n/m/b): ");
+                                scanf(" %c", &novi.operacija);
+                                
+                                printf("Unesite marku: ");
+                                scanf("%s", novi.slog.marka);
+                                
+                                printf("Unesite model: ");
+                                scanf("%s", novi.slog.model);
+                                
+                                printf("Unesite godinu proizvodnje: ");
+                                scanf("%s", novi.slog.godina_proizvodnje);
+                                
+                                printf("Unesite boju: ");
+                                scanf("%s", novi.slog.boja);
+                                
+                                printf("Unesite duzinu u beloj zoni: ");
+                                scanf("%d", &novi.slog.duz_bela);
+                                
+                                printf("Unesite duzinu u crvenoj zoni: ");
+                                scanf("%d", &novi.slog.duz_crvena);
+                                
+                                printf("Unesite duzinu u plavoj zoni: ");
+                                scanf("%d", &novi.slog.duz_plava);
+                                
+                                novi.slog.reg_oznaka = kljuc;
+                                novi.slog.status = ' ';
+                                
+                                int rez = izmeni_u_promenama(fpromena, kljuc, &novi);
+                                
+                                if(rez == 0) {
+                                    printf("Slog uspesno izmenjen u datoteci promena.\n");
+                                } else {
+                                    printf("Greska pri izmeni sloga.\n");
+                                }
+                                break;
+                            }
+                            case 17: // DIREKTNA OBRADA
+                                {
+                                    if(agregat_file == NULL || fpromena == NULL) {
+                                        printf("Prvo aktivirajte agregiranu datoteku i datoteku promena!\n");
+                                        break;
+                                    }
+                                    
+                                    // Otvori log ako nije
+                                    if(flog == NULL) {
+                                        char naziv[256];
+                                        printf("Unesite naziv log datoteke: ");
+                                        scanf("%s", naziv);
+                                        flog = fopen(naziv, "rb+");
+                                        if(flog == NULL) {
+                                            formiraj_log_datoteku(naziv);
+                                            flog = fopen(naziv, "rb+");
+                                        }
+                                    }
+                                    
+                                    int rez = direktna_obrada(agregat_file, fpromena, flog, &E);
+                                    
+                                    if(rez == 0) {
+                                        printf("Direktna obrada uspesno zavrsena.\n");
+                                    } else {
+                                        printf("Greska pri direktnoj obradi.\n");
+                                    }
+                                    break;
+                                }
                         case 0:
                             printf("Povratak na glavni meni...\n");
                             break;

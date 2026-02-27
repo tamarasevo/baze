@@ -287,13 +287,14 @@ int dodaj_slog_u_rasutu(FILE* frasuta, SLOG_AGREGAT* novi_podaci, int* E) {
             slobodni_baket.slogovi[i].sledeci_u_lancu_sinonima = -1;
             slobodni_baket.broj_slobodnih--;
             
-            // Povezi sa maticnim
+            // Povezi sa maticnim - ISPRAVLJENO!
             if (maticni_baket.prvi_u_lancu_sinonima == -1) {
                 maticni_baket.prvi_u_lancu_sinonima = slobodan;
             } else {
                 int poslednji = maticni_baket.prvi_u_lancu_sinonima;
                 BAKET temp;
-                while (1) {
+                
+                while (poslednji != -1) {  // <-- ISPRAVNO!
                     fseek(frasuta, poslednji * sizeof(BAKET), SEEK_SET);
                     fread(&temp, sizeof(BAKET), 1, frasuta);
                     
@@ -325,7 +326,6 @@ int dodaj_slog_u_rasutu(FILE* frasuta, SLOG_AGREGAT* novi_podaci, int* E) {
     return -1;
 }
 
-// Ispisi agregiranu datoteku
 void ispisi_agregiranu_datoteku(FILE* frasuta) {
     if (frasuta == NULL) {
         printf("Datoteka nije otvorena!\n");
@@ -333,16 +333,18 @@ void ispisi_agregiranu_datoteku(FILE* frasuta) {
     }
     
     printf("\n");
-    printf("============================================================================================================\n");
-    printf("                                    SADRZAJ AGREGIRANE DATOTEKE\n");
-    printf("============================================================================================================\n");
-    printf("%5s %5s %12s %20s %20s %8s %20s %8s %8s %8s %6s\n", 
+    printf("========================================================================================================\n");
+    printf("                           SADRZAJ AGREGIRANE DATOTEKE\n");
+    printf("========================================================================================================\n");
+    printf("%5s %5s %12s %20s %20s %8s %20s %8s %8s %8s\n", 
            "Baket", "Poz", "Reg.ozn", "Marka", "Model", "Godina", 
            "Boja", "Bela", "Crvena", "Plava");
-    printf("------------------------------------------------------------------------------------------------------------\n");
+    printf("--------------------------------------------------------------------------------------------------------\n");
     
     int ukupno_slogova = 0;
     int prekoracioci = 0;
+    
+    rewind(frasuta);
     
     for (int b = 0; b < B; b++) {
         BAKET baket;
@@ -350,8 +352,11 @@ void ispisi_agregiranu_datoteku(FILE* frasuta) {
         fread(&baket, sizeof(BAKET), 1, frasuta);
         
         for (int i = 0; i < FAKTOR_B; i++) {
-            if (baket.slogovi[i].podaci.reg_oznaka != OZNAKA_KRAJA) {
-                printf("%5d %5d %12d %20s %20s %8s %20s %8d %8d %8d ",
+            // Proveri da li slog postoji (nije OZNAKA_KRAJA) i da je aktivan (status ' ')
+            if (baket.slogovi[i].podaci.reg_oznaka != OZNAKA_KRAJA && 
+                baket.slogovi[i].podaci.status == ' ') {
+                
+                printf("%5d %5d %12d %20s %20s %8s %20s %8d %8d %8d",
                        b, i,
                        baket.slogovi[i].podaci.reg_oznaka,
                        baket.slogovi[i].podaci.marka,
@@ -372,21 +377,13 @@ void ispisi_agregiranu_datoteku(FILE* frasuta) {
                 ukupno_slogova++;
             }
         }
-        
-        /*if (baket.sledeci_u_lancu_slobodnih != -1) {
-            printf("      Baket %d -> sledeci slobodan: %d\n", b, baket.sledeci_u_lancu_slobodnih);
-        }
-        if (baket.prvi_u_lancu_sinonima != -1) {
-            printf("      Baket %d -> prvi u lancu sinonima: %d\n", b, baket.prvi_u_lancu_sinonima);
-        }*/
     }
     
-    printf("============================================================================================================\n");
+    printf("========================================================================================================\n");
     printf("UKUPNO SLOGOVA: %d\n", ukupno_slogova);
     printf("PREKORACILACA: %d\n", prekoracioci);
-    printf("============================================================================================================\n\n");
+    printf("========================================================================================================\n\n");
 }
-
 
 int fizicki_obrisi_iz_rasute(FILE* frasuta, int reg, int* E) {
     if (frasuta == NULL) {
@@ -637,4 +634,657 @@ int azuriraj_agregiranu(FILE* fagregat, int kljuc) {
     
     printf("\nAutomobil sa oznakom %d je uspesno izmenjen.\n", kljuc);
     return 1;
+}
+
+int formiraj_datoteku_promena(char* naziv) {
+    FILE* f = fopen(naziv, "wb");
+    if (f == NULL) {
+        printf("Greska pri kreiranju datoteke promena!\n");
+        return -1;
+    }
+    
+    // Inicijalizuj prvi blok sa oznakom kraja
+    BLOK_PROMENA blok;
+    for (int i = 0; i < FDP; i++) {
+        blok.slogovi[i].kljuc = OZNAKA_KRAJA;
+        blok.slogovi[i].operacija = ' ';
+    }
+    
+    fwrite(&blok, sizeof(BLOK_PROMENA), 1, f);
+    fflush(f);
+    fclose(f);
+    
+    printf("Datoteka promena '%s' uspesno formirana.\n", naziv);
+    return 0;
+}
+
+int dodaj_u_datoteku_promena(FILE* fpromena, SLOG_PROMENA* novi_slog) {
+    if (fpromena == NULL || novi_slog == NULL) return -1;
+    
+    // Provera da li već postoji slog sa istim ključem
+    SLOG_PROMENA pronadjen;
+    if (nadji_u_promenama(fpromena, novi_slog->kljuc, &pronadjen) == 1) {
+        printf("Slog sa kljucem %d vec postoji u datoteci promena!\n", novi_slog->kljuc);
+        return -1;
+    }
+    
+    rewind(fpromena);
+    
+    BLOK_PROMENA blok;
+    BLOK_PROMENA naredni_blok;
+    int redni_broj_bloka = 0;
+    int ubacen = 0;
+    long pozicija_za_upis = -1;
+    int pozicija_u_bloku = -1;
+    SLOG_PROMENA slog_za_ubacivanje = *novi_slog;
+    
+    // Pronađi mesto za ubacivanje
+    while (fread(&blok, sizeof(BLOK_PROMENA), 1, fpromena) == 1 && !ubacen) {
+        long trenutna_pozicija = ftell(fpromena) - sizeof(BLOK_PROMENA);
+        
+        for (int i = 0; i < FDP; i++) {
+            // Ako smo došli do kraja
+            if (blok.slogovi[i].kljuc == OZNAKA_KRAJA) {
+                // Ubaci na ovo mesto
+                blok.slogovi[i] = slog_za_ubacivanje;
+                
+                fseek(fpromena, trenutna_pozicija, SEEK_SET);
+                fwrite(&blok, sizeof(BLOK_PROMENA), 1, fpromena);
+                fflush(fpromena);
+                
+                ubacen = 1;
+                printf("Dodat slog sa kljucem %d na kraj datoteke.\n", slog_za_ubacivanje.kljuc);
+                break;
+            }
+            
+            // Ako je trenutni ključ veći od novog, ubaci ispred njega
+            if (blok.slogovi[i].kljuc > slog_za_ubacivanje.kljuc) {
+                // Sačuvaj slog koji se pomera
+                SLOG_PROMENA temp = blok.slogovi[i];
+                blok.slogovi[i] = slog_za_ubacivanje;
+                
+                // Upisujemo trenutni blok sa novim slogom
+                fseek(fpromena, trenutna_pozicija, SEEK_SET);
+                fwrite(&blok, sizeof(BLOK_PROMENA), 1, fpromena);
+                fflush(fpromena);
+                
+                // Sada rekurzivno dodajemo temp slog (on ide dalje)
+                slog_za_ubacivanje = temp;
+                break;
+            }
+        }
+        
+        redni_broj_bloka++;
+    }
+    
+    // Ako nije ubaceno ni posle svih blokova, dodaj na kraj
+    if (!ubacen) {
+        // Idi na poslednji blok
+        fseek(fpromena, -sizeof(BLOK_PROMENA), SEEK_END);
+        fread(&blok, sizeof(BLOK_PROMENA), 1, fpromena);
+        long poslednja_pozicija = ftell(fpromena) - sizeof(BLOK_PROMENA);
+        
+        // Nađi prvo prazno mesto u poslednjem bloku
+        for (int i = 0; i < FDP; i++) {
+            if (blok.slogovi[i].kljuc == OZNAKA_KRAJA) {
+                blok.slogovi[i] = slog_za_ubacivanje;
+                
+                fseek(fpromena, poslednja_pozicija, SEEK_SET);
+                fwrite(&blok, sizeof(BLOK_PROMENA), 1, fpromena);
+                fflush(fpromena);
+                
+                ubacen = 1;
+                printf("Dodat slog sa kljucem %d na kraj datoteke.\n", slog_za_ubacivanje.kljuc);
+                break;
+            }
+        }
+        
+        // Ako je poslednji blok pun, kreiraj novi
+        if (!ubacen) {
+            BLOK_PROMENA novi_blok;
+            for (int i = 0; i < FDP; i++) {
+                novi_blok.slogovi[i].kljuc = OZNAKA_KRAJA;
+                novi_blok.slogovi[i].operacija = ' ';
+            }
+            novi_blok.slogovi[0] = slog_za_ubacivanje;
+            
+            fseek(fpromena, 0, SEEK_END);
+            fwrite(&novi_blok, sizeof(BLOK_PROMENA), 1, fpromena);
+            fflush(fpromena);
+            
+            printf("Kreiran novi blok i dodat slog sa kljucem %d.\n", slog_za_ubacivanje.kljuc);
+        }
+    }
+    
+    return 0;
+}
+
+void ispisi_datoteku_promena(FILE* fpromena) {
+    if (fpromena == NULL) {
+        printf("Datoteka promena nije otvorena!\n");
+        return;
+    }
+    
+    printf("\n");
+    printf("====================================================================\n");
+    printf("           DATOTEKA PROMENA (sekvencijalna - sortirana)\n");
+    printf("====================================================================\n");
+    printf("%5s %10s %12s %s\n", "Blok", "Poz", "Kljuc", "Operacija");
+    printf("--------------------------------------------------------------------\n");
+    
+    rewind(fpromena);
+    BLOK_PROMENA blok;
+    int rbrb = 0;
+    int ukupno = 0;
+    
+    while (fread(&blok, sizeof(BLOK_PROMENA), 1, fpromena) == 1) {
+        for (int i = 0; i < FDP; i++) {
+            if (blok.slogovi[i].kljuc != OZNAKA_KRAJA) {
+                char op_str[20];
+                switch(blok.slogovi[i].operacija) {
+                    case 'n': strcpy(op_str, "NOVI"); break;
+                    case 'm': strcpy(op_str, "MODIFIKACIJA"); break;
+                    case 'b': strcpy(op_str, "BRISANJE"); break;
+                    default: strcpy(op_str, "NEPOZNATO");
+                }
+                
+                printf("%5d %10d %12d %s\n", 
+                       rbrb, i, blok.slogovi[i].kljuc, op_str);
+                ukupno++;
+            }
+        }
+        rbrb++;
+    }
+    
+    printf("--------------------------------------------------------------------\n");
+    printf("Ukupno slogova: %d\n", ukupno);
+    printf("====================================================================\n\n");
+}
+
+int nadji_u_promenama(FILE* fpromena, int kljuc, SLOG_PROMENA* pronadjen) {
+    if (fpromena == NULL) return -1;
+    
+    rewind(fpromena);
+    
+    BLOK_PROMENA blok;
+    int rbrb = 0;
+    
+    while (fread(&blok, sizeof(BLOK_PROMENA), 1, fpromena) == 1) {
+        for (int i = 0; i < FDP; i++) {
+            int k = blok.slogovi[i].kljuc;
+            
+            if (k == OZNAKA_KRAJA) {
+                return 0;  // nema ga dalje
+            }
+            
+            if (k == kljuc) {
+                *pronadjen = blok.slogovi[i];
+                return 1;  // pronađen
+            }
+            
+            if (k > kljuc) {
+                return 0;  // preskočili smo, nema ga
+            }
+        }
+        rbrb++;
+    }
+    
+    return 0;
+}
+
+// =================================================================
+// FIZIČKO BRISANJE IZ DATOTEKE PROMENA (sortirano)
+// =================================================================
+int fizicki_obrisi_iz_promena(FILE* fpromena, int kljuc) {
+    if (fpromena == NULL) {
+        printf("Datoteka promena nije otvorena!\n");
+        return 2;
+    }
+
+    rewind(fpromena);
+    
+    BLOK_PROMENA blok;
+    BLOK_PROMENA naredni_blok;
+    int redni_broj_bloka = 0;
+    int pronadjen = 0;
+    
+    while (fread(&blok, sizeof(BLOK_PROMENA), 1, fpromena) == 1 && !pronadjen) {
+        long pozicija_bloka = ftell(fpromena) - sizeof(BLOK_PROMENA);
+        
+        for (int i = 0; i < FDP; i++) {
+            int k = blok.slogovi[i].kljuc;
+            
+            if (k == OZNAKA_KRAJA) {
+                break;
+            }
+            
+            if (k == kljuc) {
+                pronadjen = 1;
+                
+                // Pomeri sve slogove iza i za jedno mesto unapred
+                for (int j = i; j < FDP - 1; j++) {
+                    blok.slogovi[j] = blok.slogovi[j + 1];
+                }
+                
+                // Proveri da li ima narednih blokova
+                long sledeca_pozicija = (redni_broj_bloka + 1) * sizeof(BLOK_PROMENA);
+                fseek(fpromena, sledeca_pozicija, SEEK_SET);
+                int ima_naredni = fread(&naredni_blok, sizeof(BLOK_PROMENA), 1, fpromena);
+                
+                if (ima_naredni == 1) {
+                    // Uzmi prvi slog iz narednog bloka
+                    blok.slogovi[FDP - 1] = naredni_blok.slogovi[0];
+                    
+                    // Pomeri slogove u narednom bloku
+                    for (int j = 0; j < FDP - 1; j++) {
+                        naredni_blok.slogovi[j] = naredni_blok.slogovi[j + 1];
+                    }
+                    naredni_blok.slogovi[FDP - 1].kljuc = OZNAKA_KRAJA;
+                    naredni_blok.slogovi[FDP - 1].operacija = ' ';
+                    
+                    // Upisi izmenjen naredni blok
+                    fseek(fpromena, sledeca_pozicija, SEEK_SET);
+                    fwrite(&naredni_blok, sizeof(BLOK_PROMENA), 1, fpromena);
+                    fflush(fpromena);
+                } else {
+                    // Nema narednog bloka, samo postavi oznaku kraja
+                    blok.slogovi[FDP - 1].kljuc = OZNAKA_KRAJA;
+                    blok.slogovi[FDP - 1].operacija = ' ';
+                }
+                
+                // Upisi izmenjen trenutni blok
+                fseek(fpromena, pozicija_bloka, SEEK_SET);
+                fwrite(&blok, sizeof(BLOK_PROMENA), 1, fpromena);
+                fflush(fpromena);
+                
+                printf("Slog sa kljucem %d je uspesno obrisan iz datoteke promena.\n", kljuc);
+                return 0;
+            }
+            
+            if (k > kljuc) {
+                // Preskočili smo mesto gde bi trebalo da bude
+                printf("Slog sa kljucem %d nije pronadjen (preskocen).\n", kljuc);
+                return 2;
+            }
+        }
+        
+        redni_broj_bloka++;
+    }
+    
+    if (!pronadjen) {
+        printf("Slog sa kljucem %d nije pronadjen u datoteci promena!\n", kljuc);
+        return 2;
+    }
+    
+    return 0;
+}
+
+int logicki_obrisi_iz_rasute(FILE* frasuta, int kljuc) {
+    if (frasuta == NULL) {
+        printf("Datoteka nije otvorena!\n");
+        return -1;
+    }
+    
+    // 1. NADJI SLOG
+    SLOG_AGREGAT pronadjen;
+    int baket, pozicija;
+    int status = nadji_u_rasutoj(frasuta, kljuc, &pronadjen, &baket, &pozicija);
+    
+    if (status == 0) {
+        printf("Auto %d ne postoji u agregiranoj datoteci!\n", kljuc);
+        return -1;
+    }
+    
+    // 2. UCITAJ BAKET
+    BAKET b;
+    fseek(frasuta, baket * sizeof(BAKET), SEEK_SET);
+    fread(&b, sizeof(BAKET), 1, frasuta);
+    
+    // 3. PROVERI DA LI JE VEC OBRISAN
+    if (b.slogovi[pozicija].podaci.status == '*') {
+        printf("Auto %d je vec logicki obrisan!\n", kljuc);
+        return -1;
+    }
+    
+    // 4. LOGIČKI OBRIŠI
+    b.slogovi[pozicija].podaci.status = '*';
+    printf("Auto %d logicki obrisan (bio aktivan).\n", kljuc);
+    
+    // 5. UPISI IZMENJEN BAKET
+    fseek(frasuta, baket * sizeof(BAKET), SEEK_SET);
+    fwrite(&b, sizeof(BAKET), 1, frasuta);
+    fflush(frasuta);
+    
+    return 0;
+}
+
+int formiraj_log_datoteku(char* naziv) {
+    FILE* f = fopen(naziv, "wb");
+    if (f == NULL) return -1;
+    
+    BLOK_LOG blok;
+    for (int i = 0; i < F_LOG; i++) {
+        blok.slogovi[i].identifikator = OZNAKA_KRAJA;
+    }
+    
+    fwrite(&blok, sizeof(BLOK_LOG), 1, f);
+    fclose(f);
+    return 0;
+}
+
+int dodaj_u_log(FILE* flog, int id_auta, char* vrsta) {
+    if (flog == NULL) return -1;
+    
+    // Pronađi poslednji identifikator
+    fseek(flog, 0, SEEK_END);
+    long velicina = ftell(flog);
+    
+    int novi_id = 1;
+    
+    if (velicina > 0) {
+        // Vrati se na poslednji slog
+        fseek(flog, -sizeof(SLOG_LOG), SEEK_END);
+        SLOG_LOG last;
+        fread(&last, sizeof(SLOG_LOG), 1, flog);
+        novi_id = last.identifikator + 1;
+    }
+    
+    // Idi na kraj za upis (serijski)
+    fseek(flog, 0, SEEK_END);
+    
+    SLOG_LOG novi;
+    novi.identifikator = novi_id;
+    novi.identifikator_automobila = id_auta;
+    strcpy(novi.vrsta_operacije, vrsta);
+    
+    fwrite(&novi, sizeof(SLOG_LOG), 1, flog);
+    fflush(flog);
+    
+    return novi_id;
+}
+
+void prikazi_log_izvestaj(FILE* flog) {
+    if (flog == NULL) return;
+    
+    rewind(flog);
+    
+    // Za brojanje operacija po automobilu
+    struct {
+        int id;
+        int unos;
+        int modifikacija;
+    } statistika[1000];
+    int br_automobila = 0;
+    
+    BLOK_LOG blok;
+    while (fread(&blok, sizeof(BLOK_LOG), 1, flog) == 1) {
+        for (int i = 0; i < F_LOG; i++) {
+            if (blok.slogovi[i].identifikator == OZNAKA_KRAJA) continue;
+            
+            int id_auta = blok.slogovi[i].identifikator_automobila;
+            char* vrsta = blok.slogovi[i].vrsta_operacije;
+            
+            // Pronađi ili dodaj u statistiku
+            int nadjen = -1;
+            for (int j = 0; j < br_automobila; j++) {
+                if (statistika[j].id == id_auta) {
+                    nadjen = j;
+                    break;
+                }
+            }
+            
+            if (nadjen == -1) {
+                nadjen = br_automobila++;
+                statistika[nadjen].id = id_auta;
+                statistika[nadjen].unos = 0;
+                statistika[nadjen].modifikacija = 0;
+            }
+            
+            if (strcmp(vrsta, "UNOS") == 0)
+                statistika[nadjen].unos++;
+            else if (strcmp(vrsta, "MODIFIKACIJA") == 0)
+                statistika[nadjen].modifikacija++;
+        }
+    }
+    
+    printf("\n========================================\n");
+    printf("       IZVESTAJ IZ LOG DATOTEKE\n");
+    printf("========================================\n");
+    printf("%12s %10s %15s\n", "ID auta", "UNOS", "MODIFIKACIJA");
+    printf("----------------------------------------\n");
+    
+    for (int i = 0; i < br_automobila; i++) {
+        printf("%12d %10d %15d\n", 
+               statistika[i].id, 
+               statistika[i].unos, 
+               statistika[i].modifikacija);
+    }
+    printf("========================================\n");
+}
+
+int direktna_obrada(FILE* fagregat, FILE* fpromena, FILE* flog, int* E) {
+    if (fagregat == NULL || fpromena == NULL) {
+        printf("Datoteke nisu otvorene!\n");
+        return -1;
+    }
+    
+    printf("\n=== DIREKTNA OBRADA ===\n");
+    printf("Vodeca: promena.bin -> Obradivana: rasuta.bin\n\n");
+    
+    rewind(fpromena);  // Početak vodeće datoteke
+    
+    BLOK_PROMENA blok;
+    int obradjeno = 0;
+    int greske = 0;
+    
+    while (fread(&blok, sizeof(BLOK_PROMENA), 1, fpromena) == 1) {
+        for (int i = 0; i < FDP; i++) {
+            if (blok.slogovi[i].kljuc == OZNAKA_KRAJA) continue;
+            
+            SLOG_PROMENA* p = &blok.slogovi[i];
+            
+            printf("Obrada: kljuc=%d, operacija=%c\n", p->kljuc, p->operacija);
+            
+            switch(p->operacija) {
+                case 'n': // NOVI SLOG
+                {
+                    int rez = dodaj_slog_u_rasutu(fagregat, &p->slog, E);
+                    if (rez == 0) {
+                        if (flog) dodaj_u_log(flog, p->kljuc, "UNOS");
+                        obradjeno++;
+                    } else {
+                        greske++;
+                    }
+                    break;
+                }
+                
+                case 'm': // MODIFIKACIJA
+                {
+                    SLOG_AGREGAT stari;
+                    int baket, poz;
+                    int postoji = nadji_u_rasutoj(fagregat, p->kljuc, &stari, &baket, &poz);
+                    
+                    if (postoji != 0) {
+                        // Postoji – modifikuj
+                        BAKET b;
+                        fseek(fagregat, baket * sizeof(BAKET), SEEK_SET);
+                        fread(&b, sizeof(BAKET), 1, fagregat);
+                        b.slogovi[poz].podaci = p->slog;
+                        fseek(fagregat, baket * sizeof(BAKET), SEEK_SET);
+                        fwrite(&b, sizeof(BAKET), 1, fagregat);
+                        fflush(fagregat);
+                        
+                        if (flog) dodaj_u_log(flog, p->kljuc, "MODIFIKACIJA");
+                        obradjeno++;
+                    } else {
+                        // Ne postoji – dodaj kao novi
+                        printf("   Auto %d ne postoji – dodajem kao NOVI\n", p->kljuc);
+                        int rez = dodaj_slog_u_rasutu(fagregat, &p->slog, E);
+                        if (rez == 0) {
+                            if (flog) dodaj_u_log(flog, p->kljuc, "UNOS");
+                            obradjeno++;
+                        } else {
+                            greske++;
+                        }
+                    }
+                    break;
+                }
+                
+                case 'b': // BRISANJE
+                {
+                    int rez = fizicki_obrisi_iz_rasute(fagregat, p->kljuc, E);
+                    if (rez == 0) {
+                        obradjeno++;
+                    } else {
+                        greske++;
+                    }
+                    break;
+                }
+                
+                default:
+                    printf("   Nepoznata operacija: %c\n", p->operacija);
+                    greske++;
+            }
+        }
+    }
+    
+    printf("\n=== DIREKTNA OBRADA ZAVRSENA ===\n");
+    printf("Uspesno obradjeno: %d\n", obradjeno);
+    printf("Gresaka: %d\n", greske);
+    
+    // NE DIRAMO promena.dat – ostaje netaknuta!
+    
+    return 0;
+}
+
+int izmeni_u_promenama(FILE* fpromena, int kljuc, SLOG_PROMENA* novi_slog) {
+    if (fpromena == NULL || novi_slog == NULL) return -1;
+    
+    rewind(fpromena);
+    
+    BLOK_PROMENA blok;
+    int rbrb = 0;
+    int pronadjen = 0;
+    
+    while (fread(&blok, sizeof(BLOK_PROMENA), 1, fpromena) == 1 && !pronadjen) {
+        long pozicija_bloka = ftell(fpromena) - sizeof(BLOK_PROMENA);
+        
+        for (int i = 0; i < FDP; i++) {
+            if (blok.slogovi[i].kljuc == OZNAKA_KRAJA) {
+                break;
+            }
+            
+            if (blok.slogovi[i].kljuc == kljuc) {
+                pronadjen = 1;
+                
+                // Prikaži trenutne podatke
+                printf("\n=== IZMENA U DATOTECI PROMENA ===\n");
+                printf("Trenutni slog:\n");
+                printf("  Kljuc: %d\n", blok.slogovi[i].kljuc);
+                printf("  Operacija: %c\n", blok.slogovi[i].operacija);
+                printf("  Marka: %s\n", blok.slogovi[i].slog.marka);
+                printf("  Model: %s\n", blok.slogovi[i].slog.model);
+                printf("  Godina: %s\n", blok.slogovi[i].slog.godina_proizvodnje);
+                printf("  Boja: %s\n", blok.slogovi[i].slog.boja);
+                printf("  Bela zona: %d\n", blok.slogovi[i].slog.duz_bela);
+                printf("  Crvena zona: %d\n", blok.slogovi[i].slog.duz_crvena);
+                printf("  Plava zona: %d\n", blok.slogovi[i].slog.duz_plava);
+                
+                // Zameni sa novim slogom
+                blok.slogovi[i] = *novi_slog;
+                
+                // Upisi izmenjen blok
+                fseek(fpromena, pozicija_bloka, SEEK_SET);
+                fwrite(&blok, sizeof(BLOK_PROMENA), 1, fpromena);
+                fflush(fpromena);
+                
+                printf("\nSlog uspesno izmenjen!\n");
+                return 0;
+            }
+            
+            if (blok.slogovi[i].kljuc > kljuc) {
+                // Preskočili smo mesto gde bi trebalo da bude
+                printf("Slog sa kljucem %d nije pronadjen.\n", kljuc);
+                return -1;
+            }
+        }
+        rbrb++;
+    }
+    
+    printf("Slog sa kljucem %d nije pronadjen.\n", kljuc);
+    return -1;
+}
+
+int propagiraj_iz_automobila(FILE* fagregat, FILE* fauto, FILE* fpark, FILE* flog) {
+    if (fagregat == NULL || fauto == NULL || fpark == NULL) {
+        printf("Datoteke nisu aktivirane!\n");
+        return -1;
+    }
+    
+    printf("\n=== PROPAGACIJA IZ DATOTEKA DELA 1 ===\n");
+    
+    rewind(fauto);
+    BLOK_AUTO blok_auto;
+    int propagirano = 0;
+    int greske = 0;
+    
+    while (fread(&blok_auto, sizeof(BLOK_AUTO), 1, fauto) == 1) {
+        for (int i = 0; i < FBLOKIRANJA_1; i++) {
+            if (blok_auto.automobili[i].reg_oznaka == OZNAKA_KRAJA_DATOTEKE) {
+                continue;
+            }
+            
+            int reg = blok_auto.automobili[i].reg_oznaka;
+            
+            // Kreiraj agregirani slog
+            SLOG_AGREGAT novi;
+            novi.reg_oznaka = reg;
+            strcpy(novi.marka, blok_auto.automobili[i].marka);
+            strcpy(novi.model, blok_auto.automobili[i].model);
+            strcpy(novi.godina_proizvodnje, blok_auto.automobili[i].god_proizvodnje);
+            strcpy(novi.boja, blok_auto.automobili[i].boja);
+            novi.duz_bela = 0;
+            novi.duz_crvena = 0;
+            novi.duz_plava = 0;
+            novi.status = ' ';
+            
+            // Saberi sate iz parkinga
+            rewind(fpark);
+            BLOK_PARKING blok_park;
+            
+            while (fread(&blok_park, sizeof(BLOK_PARKING), 1, fpark) == 1) {
+                for (int j = 0; j < FBLOKIRANJA_2; j++) {
+                    if (blok_park.parkinzi[j].id == OZNAKA_KRAJA_DATOTEKE) break;
+                    if (blok_park.parkinzi[j].reg_oznaka == reg) {
+                        switch(blok_park.parkinzi[j].zona) {
+                            case 0: novi.duz_plava += blok_park.parkinzi[j].sati; break;
+                            case 1: novi.duz_bela += blok_park.parkinzi[j].sati; break;
+                            case 2: novi.duz_crvena += blok_park.parkinzi[j].sati; break;
+                        }
+                    }
+                }
+            }
+            
+            // Dodaj u agregiranu datoteku
+            int E_local = 0; // privremeno, ne koristimo globalno E
+            int rez = dodaj_slog_u_rasutu(fagregat, &novi, &E_local);
+            
+            if (rez == 0) {
+                if (flog != NULL) {
+                    dodaj_u_log(flog, reg, "UNOS");
+                }
+                propagirano++;
+                printf("Propagiran auto %d\n", reg);
+            } else {
+                greske++;
+                printf("Greska pri propagaciji auta %d\n", reg);
+            }
+        }
+    }
+    
+    printf("\n=== PROPAGACIJA ZAVRSENA ===\n");
+    printf("Uspesno propagirano: %d\n", propagirano);
+    printf("Gresaka: %d\n", greske);
+    
+    return 0;
 }
