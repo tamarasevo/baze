@@ -19,6 +19,18 @@ int main() {
     FILE* fpromena = NULL;      
     FILE* flog = NULL; 
     
+    flog = fopen("log.bin", "rb+");
+    if(flog == NULL) {
+        // Ako ne postoji, kreiraj je
+        formiraj_log_datoteku("log.bin");
+        flog = fopen("log.bin", "rb+");
+        if(flog != NULL) {
+            printf("Log datoteka 'log.bin' kreirana i otvorena.\n");
+        }
+    } else {
+        printf("Log datoteka 'log.dat' otvorena.\n");
+    }
+    
     int E;  // pokazivac na prvi slobodan baket
     int prebroj_prekoracioci; 
 
@@ -30,6 +42,7 @@ int main() {
         printf("2. Rad sa datotekom parkiranja\n");
         printf("3. Izvestaji\n");
         printf("4. Rad sa agregiranim podacima\n");
+        printf("5. Log datoteka\n");
         printf("0. Izlaz iz programa\n");
         printf("Izaberite opciju: ");
         scanf("%d", &glavnaOpcija);
@@ -152,6 +165,9 @@ int main() {
                             int status = dodaj_slog_sek(afile, &a);
                             if (status == 1) {
                                 printf("Automobil uspesno dodat!\n");
+                                if(flog != NULL) {
+                                    dodaj_u_log(flog, a.reg_oznaka, "UNOS");
+                                }
                             } else {
                                 printf("Greska pri dodavanju automobila!\n");
                             }
@@ -239,15 +255,76 @@ int main() {
                             }
                             break;
                         }
-                        case 7:{
-                                printf("Unesite registarsku oznaku automobila za izmenu: ");
-                                int reg;
-                                scanf("%d", &reg);
+                        case 7: {
+                            printf("Unesite registarsku oznaku automobila za izmenu: ");
+                            int reg;
+                            scanf("%d", &reg);
+                            ocisti_buffer();
+                            
+                            // Prvo proveri da li auto postoji
+                            SLOG_AUTO postojeci;
+                            rewind(afile);
+                            int status = nadji_auto_sek(afile, reg, &postojeci);
+                            
+                            if(status == 1) {
+                                // Auto postoji – idi na izmenu
+                                int rez = izmeni_auto(afile, reg);
+                                if(rez == 1) {
+                                    printf("Automobil uspesno izmenjen!\n");
+                                    if(flog != NULL) {
+                                        dodaj_u_log(flog, reg, "MODIFIKACIJA");
+                                    }
+                                } else {
+                                    printf("Greska pri izmeni.\n");
+                                }
+                            } else {
+                                // Auto ne postoji – pitaj korisnika
+                                printf("\nAutomobil sa oznakom %d ne postoji!\n", reg);
+                                printf("1 - Unesi novog automobila\n");
+                                printf("2 - Ponovi unos oznake\n");
+                                printf("0 - Odustani\n");
+                                printf("Izbor: ");
+                                
+                                int izbor;
+                                scanf("%d", &izbor);
                                 ocisti_buffer();
-                                izmeni_auto(afile, reg);
-                                break;
+                                
+                                if(izbor == 1) {
+                                    // Unesi novi auto
+                                    SLOG_AUTO a;
+                                    a.reg_oznaka = reg;
+                                    
+                                    printf("Marka: ");
+                                    scanf("%s", a.marka);
+                                    
+                                    printf("Model: ");
+                                    scanf("%s", a.model);
+                                    
+                                    printf("Godina proizvodnje: ");
+                                    scanf("%s", a.god_proizvodnje);
+                                    
+                                    printf("Boja: ");
+                                    scanf("%s", a.boja);
+                                    
+                                    int status = dodaj_slog_sek(afile, &a);
+                                    if(status == 1) {
+                                        printf("Automobil uspesno dodat!\n");
+                                        if(flog != NULL) {
+                                            dodaj_u_log(flog, reg, "UNOS");
+                                        }
+                                    } else {
+                                        printf("Greska pri dodavanju automobila!\n");
+                                    }
+                                } else if(izbor == 2) {
+                                    // Ponovi unos – samo se vrati na pocetak case-a
+                                    // (možeš ići opet u case 7 ili samo ponovo pitati)
+                                    printf("Ponovite unos.\n");
+                                } else {
+                                    printf("Izmena otkazana.\n");
+                                }
+                            }
+                            break;
                         }
-                        
                         case 0:
                             printf("Povratak na glavni meni...\n");
                             break;
@@ -1018,11 +1095,24 @@ int main() {
                     }
                 } while(podOpcija != 0);
                 break;
-                
+            
+            case 5: // PRIKAZ LOG DATOTEKE
+                    {
+                        if(flog == NULL) {
+                            printf("Log datoteka nije otvorena!\n");
+                            break;
+                        }
+                        
+                        ispisi_log_datoteku(flog);
+                        break;
+                    }
             case 0:
                 printf("Izlaz iz programa.\n");
                 if(afile != NULL) fclose(afile);
                 if(pfile != NULL) fclose(pfile);
+                if(agregat_file != NULL) fclose(agregat_file);
+                if(fpromena != NULL) fclose(fpromena);
+                if(flog != NULL) fclose(flog);
                 break;
                 
             default:

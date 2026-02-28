@@ -958,39 +958,27 @@ int logicki_obrisi_iz_rasute(FILE* frasuta, int kljuc) {
     return 0;
 }
 
+
 int formiraj_log_datoteku(char* naziv) {
     FILE* f = fopen(naziv, "wb");
-    if (f == NULL) return -1;
+    if(f == NULL) return -1;
     
-    BLOK_LOG blok;
-    for (int i = 0; i < F_LOG; i++) {
-        blok.slogovi[i].identifikator = OZNAKA_KRAJA;
-    }
-    
-    fwrite(&blok, sizeof(BLOK_LOG), 1, f);
+    // PRAZAN FAJL – ne pišemo ništa!
     fclose(f);
+    
+    printf("Log datoteka '%s' kreirana (prazna).\n", naziv);
     return 0;
 }
 
 int dodaj_u_log(FILE* flog, int id_auta, char* vrsta) {
-    if (flog == NULL) return -1;
+    if(flog == NULL) return -1;
     
-    // Pronađi poslednji identifikator
+    // Idi na kraj
     fseek(flog, 0, SEEK_END);
+    
+    // Izračunaj sledeći ID
     long velicina = ftell(flog);
-    
-    int novi_id = 1;
-    
-    if (velicina > 0) {
-        // Vrati se na poslednji slog
-        fseek(flog, -sizeof(SLOG_LOG), SEEK_END);
-        SLOG_LOG last;
-        fread(&last, sizeof(SLOG_LOG), 1, flog);
-        novi_id = last.identifikator + 1;
-    }
-    
-    // Idi na kraj za upis (serijski)
-    fseek(flog, 0, SEEK_END);
+    int novi_id = (velicina / sizeof(SLOG_LOG)) + 1;
     
     SLOG_LOG novi;
     novi.identifikator = novi_id;
@@ -1287,4 +1275,34 @@ int propagiraj_iz_automobila(FILE* fagregat, FILE* fauto, FILE* fpark, FILE* flo
     printf("Gresaka: %d\n", greske);
     
     return 0;
+}
+
+void ispisi_log_datoteku(FILE* flog) {
+    if(flog == NULL) {
+        printf("Log nije otvoren!\n");
+        return;
+    }
+    
+    rewind(flog);
+    
+    printf("\n========================================\n");
+    printf("         SADRZAJ LOG DATOTEKE\n");
+    printf("========================================\n");
+    printf("%5s %15s %20s\n", "ID", "ID auta", "Operacija");
+    printf("----------------------------------------\n");
+    
+    SLOG_LOG slog;
+    int broj = 0;
+    
+    while(fread(&slog, sizeof(SLOG_LOG), 1, flog) == 1) {
+        broj++;
+        printf("%5d %15d %20s\n", 
+               slog.identifikator, 
+               slog.identifikator_automobila, 
+               slog.vrsta_operacije);
+    }
+    
+    printf("----------------------------------------\n");
+    printf("Ukupno slogova: %d\n", broj);
+    printf("========================================\n\n");
 }

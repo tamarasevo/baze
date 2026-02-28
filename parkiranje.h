@@ -10,7 +10,7 @@ typedef enum {PLAVA, BELA, CRVENA} Zona;
 typedef struct slog_parking {
     int id;
     int reg_oznaka;
-    char datum[12];  // +1 za null karakter (DD-MM-YYYY)
+    char datum[15];  // +1 za null karakter (DD-MM-YYYY)
     int sati;
     Zona zona;
 } SLOG_PARKING;
